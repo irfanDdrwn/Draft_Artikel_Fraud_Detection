@@ -1,4 +1,5 @@
 import joblib
+import numpy as np
 import pandas as pd
 import streamlit as st
 
@@ -35,15 +36,16 @@ if df is not None:
         proba = model.predict_proba(df[columns])[:, 1]
         out = df.copy()
         out["Probabilitas_Penipuan"] = proba.round(4)
-        out["Prediksi"] = (proba >= threshold).map({True: "PENIPUAN", False: "Normal"})
+        out["Prediksi"] = np.where(proba >= threshold, "PENIPUAN", "Normal")
         c1, c2, c3 = st.columns(3)
         c1.metric("Total transaksi", len(out))
         c2.metric("Ditandai penipuan", int((out["Prediksi"] == "PENIPUAN").sum()))
         c3.metric("Probabilitas tertinggi", f"{proba.max():.2%}")
-        st.dataframe(
-            out[["Time", "Amount", "Probabilitas_Penipuan", "Prediksi"]]
-            .sort_values("Probabilitas_Penipuan", ascending=False),
-            use_container_width=True)
+        top = (out[["Time", "Amount", "Probabilitas_Penipuan", "Prediksi"]]
+               .sort_values("Probabilitas_Penipuan", ascending=False))
+        if len(top) > 1000:
+            st.caption("Menampilkan 1.000 transaksi dengan probabilitas penipuan tertinggi.")
+        st.dataframe(top.head(1000), use_container_width=True)
         st.download_button("Unduh hasil (CSV)", out.to_csv(index=False), "hasil_prediksi.csv")
 else:
     st.info("Unggah CSV atau klik 'Gunakan contoh data'.")
